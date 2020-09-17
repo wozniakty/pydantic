@@ -15,6 +15,7 @@ from typing import (
     Optional,
     Pattern,
     Set,
+    Tuple,
     Type,
     TypeVar,
     Union,
@@ -910,6 +911,26 @@ if not TYPE_CHECKING:  # noqa: C901
             return use_v
 
 
+    class _DelimitedMeta(type):
+        def __getitem__(self, parameters):
+            delimiter, member_type = parameters
+            def split_str_validator(cls, v: 'Optional[Union[List[T], str]]', field: 'ModelField') -> 'Optional[List[T]]':
+                    if v is None and not field.required:
+                        return None
+                    if isinstance(v, str):
+                        use_v: List[Any] = v.split(delimiter)
+                    else:
+                        use_v = list_validator(v)
+                    return use_v
+            t = type('DelimitedList', (SplitStr[member_type],), {'split_str_validator': split_str_validator})
+
+            return t
+
+
+    class DelimitedList(metaclass=_DelimitedMeta):
+        pass
+
+
 if TYPE_CHECKING:
 
     # Actual valid type annotations, for mypy and static type checkers
@@ -936,3 +957,9 @@ if TYPE_CHECKING:
 
     class CommaSeparatedStripped(SplitStr[T]):  # noqa: F811
         ...
+
+    class _DelimitedMeta:
+        # Class for defining generic aliases for library types.
+        def __getitem__(self, typeargs: Tuple[str, Type[T]]) -> Type[List[T]]: ...
+
+    DelimitedList: _DelimitedMeta
